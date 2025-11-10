@@ -19,10 +19,10 @@ const port = process.env.PORT || 4000;
 await connectDB();
 await connectCloudinary();
 
-// ✅ Allow frontend origin (for local + Vercel)
+// ✅ Allowed frontend origins (local + production)
 const allowedOrigins = [
-  "http://localhost:5173",
-  "https://smart-grocery-store-frontend.vercel.app",
+  "http://localhost:5173",                            // Local dev
+  "https://smart-grocery-store-mern.vercel.app",      // ✅ Your deployed frontend
 ];
 
 // ✅ Middlewares
@@ -30,8 +30,16 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(
   cors({
-    origin: allowedOrigins,
-    credentials: true, // ✅ Important for cookies (JWT)
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true, // ✅ Required for sending cookies (JWT)
   })
 );
 
