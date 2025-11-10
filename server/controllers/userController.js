@@ -21,10 +21,11 @@ export const register = async (req, res) => {
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
+    // ✅ Secure cookie setup for Vercel
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      secure: true,       // Always true for HTTPS (Vercel)
+      sameSite: "none",   // Allow cross-site cookie
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -54,13 +55,12 @@ export const login = async (req, res) => {
       return res.json({ success: false, message: "Invalid email or password" });
     }
 
-    // ✅ Token generation (moved outside)
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -71,33 +71,29 @@ export const login = async (req, res) => {
   }
 };
 
-
 // Check Auth : /api/user/is-auth
-
 export const isAuth = async (req, res) => {
-
-    try{
-        const{userId} = req.user;
-        const user = await User.findById(userId).select("-password")
-        return res.json({success: true, user})
-
-    } catch (error) {
-        console.log(error.message);
+  try {
+    const { userId } = req.user;
+    const user = await User.findById(userId).select("-password");
+    return res.json({ success: true, user });
+  } catch (error) {
+    console.log(error.message);
     res.json({ success: false, message: error.message });
-    }
-}
+  }
+};
 
 // Logout User : /api/user/logout
 export const logout = async (req, res) => {
-    try {
-      res.clearCookie("token",{
-       httpOnly: true,
-       secure: process.env.NODE_ENV === "production",
-       sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",     
-    })
-      return res.json({success: true, message: "Logged Out"})
-}catch (error) {   
-        console.log(error.message);
+  try {
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+    });
+    return res.json({ success: true, message: "Logged Out" });
+  } catch (error) {
+    console.log(error.message);
     res.json({ success: false, message: error.message });
-}
-}
+  }
+};
