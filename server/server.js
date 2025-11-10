@@ -19,16 +19,35 @@ const port = process.env.PORT || 4000;
 await connectDB();
 await connectCloudinary();
 
-// ✅ Allow frontend origin
-const allowedOrigins = ['http://localhost:5173'];
+// ✅ Allow both local and deployed frontend origins
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://smart-grocery-store-frontend.vercel.app/'
+];
 
 // ✅ Middlewares
 app.use(express.json());
 app.use(cookieParser());
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+
+// ✅ CORS Middleware
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = `CORS policy does not allow access from origin ${origin}`;
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS']
+  })
+);
 
 // ✅ Test route
-app.get('/', (req, res) => res.send("API is Working"));
+app.get('/', (req, res) => res.send('API is Working'));
 
 // ✅ Main Routes
 app.use('/api/user', userRouter);
@@ -40,12 +59,12 @@ app.use('/api/order', orderRouter);
 
 // ✅ Razorpay Key route (for frontend use)
 app.get('/api/getkey', (req, res) => {
-    res.json({ key: process.env.RAZORPAY_KEY_ID });
+  res.json({ key: process.env.RAZORPAY_KEY_ID });
 });
 
 // ✅ Start server
 app.listen(port, () => {
-    console.log(`✅ Server is running on http://localhost:${port}`);
+  console.log(`✅ Server is running on http://localhost:${port}`);
 });
 
 export default app;
