@@ -1,24 +1,27 @@
 import Order from '../models/order.js';
-import Product from '../models/Product.js'; // ✅ fixed import path
+import Product from '../models/Product.js';
 import razorpay from '../configs/razorpay.js';
 import crypto from 'crypto';
 
 // Place Order COD: /api/order/cod
 export const placeOrder = async (req, res) => {
   try {
-    const { userId, items, address } = req.body;
-    if (!address || items.length === 0) {
-      return res.json({ success: false, message: 'Invalid data' });
+    const { items, address } = req.body;
+    const userId = req.user.userId; // ✅ get from authUser
+
+    if (!address || !items || items.length === 0) {
+      return res.json({ success: false, message: 'Invalid order data' });
     }
 
-    // Calculate Amount Using Items
+    // Calculate total amount
     let amount = 0;
     for (const item of items) {
       const product = await Product.findById(item.product);
+      if (!product) continue;
       amount += product.offerPrice * item.quantity;
     }
 
-    // Add Tax Charge (2%)
+    // Add 2% tax
     amount += Math.floor(amount * 0.02);
 
     await Order.create({
@@ -29,7 +32,7 @@ export const placeOrder = async (req, res) => {
       paymentType: 'COD',
     });
 
-    return res.json({ success: true, message: 'Order Placed Successfully' });
+    return res.json({ success: true, message: 'Order placed successfully ✅' });
   } catch (error) {
     console.log(error.message);
     res.json({ success: false, message: error.message });
@@ -71,31 +74,34 @@ export const getAllOrders = async (req, res) => {
 // Create Razorpay Order: /api/order/razorpay
 export const createRazorpayOrder = async (req, res) => {
   try {
-    const { userId, items, address } = req.body;
-    if (!address || items.length === 0) {
-      return res.json({ success: false, message: 'Invalid data' });
+    const { items, address } = req.body;
+    const userId = req.user.userId; // ✅ from token
+
+    if (!address || !items || items.length === 0) {
+      return res.json({ success: false, message: 'Invalid order data' });
     }
 
-    // Calculate Amount Using Items
+    // Calculate total amount
     let amount = 0;
     for (const item of items) {
       const product = await Product.findById(item.product);
+      if (!product) continue;
       amount += product.offerPrice * item.quantity;
     }
 
-    // Add Tax Charge (2%)
+    // Add 2% tax
     amount += Math.floor(amount * 0.02);
 
     // Create Razorpay order
     const options = {
-      amount: amount * 100, // Razorpay expects amount in paisa
+      amount: amount * 100,
       currency: 'INR',
       receipt: `receipt_${Date.now()}`,
     };
 
     const order = await razorpay.orders.create(options);
 
-    // Save order in database with razorpay_order_id
+    // Save in DB
     const dbOrder = await Order.create({
       userId,
       items,
@@ -112,8 +118,8 @@ export const createRazorpayOrder = async (req, res) => {
         id: order.id,
         amount: order.amount,
         currency: order.currency,
-        dbOrderId: dbOrder._id
-      }
+        dbOrderId: dbOrder._id,
+      },
     });
   } catch (error) {
     console.log(error.message);
@@ -124,9 +130,13 @@ export const createRazorpayOrder = async (req, res) => {
 // Verify Razorpay Payment: /api/order/verify
 export const verifyPayment = async (req, res) => {
   try {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      orderId,
+    } = req.body;
 
-    // Verify signature
     const sign = razorpay_order_id + '|' + razorpay_payment_id;
     const expectedSign = crypto
       .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
@@ -134,16 +144,15 @@ export const verifyPayment = async (req, res) => {
       .digest('hex');
 
     if (razorpay_signature === expectedSign) {
-      // Payment verified, update order status
       await Order.findByIdAndUpdate(orderId, {
         isPaid: true,
         razorpayPaymentId: razorpay_payment_id,
-        status: 'Payment Completed'
+        status: 'Payment Completed',
       });
 
-      return res.json({ success: true, message: 'Payment verified successfully' });
+      return res.json({ success: true, message: 'Payment verified successfully ✅' });
     } else {
-      return res.json({ success: false, message: 'Payment verification failed' });
+      return res.json({ success: false, message: 'Payment verification failed ❌' });
     }
   } catch (error) {
     console.log(error.message);
