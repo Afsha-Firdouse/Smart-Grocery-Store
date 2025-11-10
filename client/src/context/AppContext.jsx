@@ -4,7 +4,8 @@ import { toast } from "react-hot-toast";
 import axios from "axios";
 
 axios.defaults.withCredentials = true;
-axios.defaults.baseURL = import.meta.env.REACT_APP_API_URL || import.meta.env.VITE_BACKEND_URL;
+axios.defaults.baseURL = "https://smart-grocery-store-backend.vercel.app";
+
 
 const AppContext = createContext(null);
 
